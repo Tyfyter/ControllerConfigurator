@@ -1,0 +1,3 @@
+displayName = Controller Configurator
+author = Moonlight Glint
+version = 0.1

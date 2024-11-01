@@ -1,0 +1,10 @@
+Configs: {
+	ControllerConfiguratorConfig: {
+		DisplayName: Controller Configurator Config
+
+		DisableLeftStickInRadial: {
+			Label: Disable Left Stick In Radial
+			Tooltip: ""
+		}
+	}
+}
