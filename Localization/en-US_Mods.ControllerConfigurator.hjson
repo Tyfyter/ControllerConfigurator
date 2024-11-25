@@ -1,10 +1,17 @@
 Configs: {
 	ControllerConfiguratorConfig: {
-		DisplayName: Controller Configurator Config
+		DisplayName: Controller Configuration
 
 		DisableLeftStickInRadial: {
-			Label: Disable Left Stick In Radial
+			Label: Allow Movement With Radial Menu Open
+			Tooltip: When enabled, only the right analog stick will be used to select items in the radial hotbar, and all other controls will function as if the radial hotbar is not open
+		}
+
+		ControlerMouseSensitivity: {
+			Label: Controler Mouse Sensitivity
 			Tooltip: ""
 		}
 	}
 }
+
+Keybinds.UseMouseWithControler.DisplayName: Use Mouse With Controler
