@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Terraria;
 using Terraria.GameContent.UI.Elements;
+using Terraria.GameContent.UI.States;
 using Terraria.GameInput;
 using Terraria.ID;
 using Terraria.ModLoader;
@@ -110,7 +111,7 @@ namespace ControllerConfigurator {
 					UILinkPointNavigator.ChangePoint(gamepadHoveredSlot);
 				}
 			}
-			if (forceMouse && !Main.playerInventory && !ChordBindings.HasBindingWindowOpen) {
+			if (forceMouse && !Main.playerInventory && !Main.ingameOptionsWindow && !(Main.InGameUI.IsVisible && (Main.InGameUI.CurrentState == Main.ManageControlsMenu || Main.InGameUI.CurrentState == Main.AchievementsMenu))) {
 				forceMouse = false;
 			} else if (!forceMouse && ChordBindings.HasBindingWindowOpen) {
 				forceMouse = true;
@@ -174,7 +175,7 @@ namespace ControllerConfigurator {
 		public static ControllerConfiguratorConfig Instance;
 		[DefaultValue(true)]
 		public bool DisableLeftStickInRadial { get; set; }
-		[DefaultValue(8f)]
+		[DefaultValue(8f), Range(0, 32)]
 		public float ControlerMouseSensitivity { get; set; }
 	}
 	public class FloatCurve : Curve<float> {

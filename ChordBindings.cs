@@ -33,6 +33,14 @@ namespace ControllerConfigurator {
 			On_GlyphTagHandler.GenerateTag_string += On_GlyphTagHandler_GenerateTag_string;
 			On_UIManageControls.AssembleBindPanels += On_UIManageControls_AssembleBindPanels;
 			On_PlayerInput.CheckRebindingProcessGamepad += On_PlayerInput_CheckRebindingProcessGamepad;
+			On_PlayerInput.CheckRebindingProcessKeyboard += On_PlayerInput_CheckRebindingProcessKeyboard;
+		}
+		private bool On_PlayerInput_CheckRebindingProcessKeyboard(On_PlayerInput.orig_CheckRebindingProcessKeyboard orig, string newKey) {
+			if (chordBindingElement?.listeningChordPart is not null) {
+				chordBindingElement.listeningChordPart.TryBind(newKey);
+				return true;
+			}
+			return orig(newKey);
 		}
 		private bool On_PlayerInput_CheckRebindingProcessGamepad(On_PlayerInput.orig_CheckRebindingProcessGamepad orig, string newKey) {
 			if (chordBindingElement?.listeningChordPart is not null) {
@@ -45,6 +53,10 @@ namespace ControllerConfigurator {
 		ChordBindingElement chordBindingElement;
 		private void On_UIManageControls_AssembleBindPanels(On_UIManageControls.orig_AssembleBindPanels orig, UIManageControls self) {
 			orig(self);
+			if (chordBindingElement is not null) {
+				//chordBindingElement.Visible = false;
+				chordBindingElement = null;
+			}
 			self.Append(chordBindingElement = new());
 		}
 
@@ -96,6 +108,7 @@ namespace ControllerConfigurator {
 								}
 							}
 						} else {
+							HashSet<string> currentlyPressed = PlayerInput.GetPressedKeys().Select(Enum.GetName).Concat(PlayerInput.MouseKeys).ToHashSet();
 							for (int i = 0; i < parts.Length - 1; i++) {
 								string part = parts[i];
 								bool inverted = false;
@@ -103,7 +116,7 @@ namespace ControllerConfigurator {
 									part = part[1..];
 									inverted = true;
 								}
-								if (!Enum.TryParse(part, true, out Keys keys) || (Main.keyState.IsKeyUp(keys) ^ inverted)) {
+								if (currentlyPressed.Contains(part) == inverted) {
 									goto broken;
 								}
 							}
@@ -132,6 +145,7 @@ namespace ControllerConfigurator {
 		bool visible = false;
 		public bool Visible => visible;
 		ManualList bindingList;
+		UIScrollbar bindingListScrollbar;
 		internal UIChordbindingListItem listeningChordPart;
 		public bool IsForGamepad => mode is InputMode.XBoxGamepad or InputMode.XBoxGamepadUI;
 		public void SetBinding(string bind, InputMode mode) {
@@ -148,18 +162,29 @@ namespace ControllerConfigurator {
 			this.Recalculate();
 		}
 		public override void OnInitialize() {
+			OverflowHidden = true;
 			Width.Set(0, 0.35f);
 			Height.Set(0, 0.5f);
 			VAlign = 0.65f;
 			HAlign = 0.5f;
 
-			bindingList = new();
+			bindingList = new() {
+				addSeparators = true
+			};
 			//bindingList.Top.Set(0, 0.1f);
 			bindingList.Width.Set(0, 1);
-			//bindingList.MaxHeight.Set(-32, 1);
+			bindingList.MaxHeight.Set(-32, 1);
 			//bindingList.MinHeight.Set(32, 0);
-			bindingList.OverflowHidden = false;
+			bindingList.OverflowHidden = true;
 			Append(bindingList);
+			bindingListScrollbar = new() {
+				HAlign = 1,
+				VAlign = 0.5f,
+			};
+			bindingListScrollbar.Top.Set(-16, 0);
+			bindingListScrollbar.Height.Set(-48, 1);
+			bindingListScrollbar.Left.Set(Main.screenWidth, 0);
+			Append(bindingListScrollbar);
 
 			UIButton<LocalizedText> saveButton = new(Language.GetOrRegister("LegacyInterface.47")) {
 				VAlign = 1
@@ -183,38 +208,68 @@ namespace ControllerConfigurator {
 			};
 			Append(closeButton);
 		}
+		public override void ScrollWheel(UIScrollWheelEvent evt) {
+			bindingListScrollbar.ViewPosition -= evt.ScrollWheelValue / 2;
+		}
+
 		public override void Update(GameTime gameTime) {
 			base.Update(gameTime);
+			bool wasScrollbarVisible = bindingListScrollbar.Left.Pixels == 0;
+			if (bindingList.Height.Pixels > bindingList.GetDimensions().Height) {
+				bindingList.Width.Set(-20, 1);
+				bindingListScrollbar.Left.Set(0, 0);
+				if (wasScrollbarVisible) {
+					bindingList.Recalculate();
+					bindingListScrollbar.Recalculate();
+				}
+				bindingListScrollbar.SetView(bindingList.GetDimensions().Height, bindingList.Height.Pixels);
+				bindingList.scroll = bindingListScrollbar.ViewPosition;
+			} else {
+				bindingList.Width.Set(0, 1);
+				bindingListScrollbar.Left.Set(Main.screenWidth, 0);
+				if (wasScrollbarVisible) {
+					bindingList.Recalculate();
+					bindingListScrollbar.Recalculate();
+				}
+			}
 		}
 		public void SetupList() {
 			bindingList.Clear();
 			if (bindingLists.Count == 0) bindingLists.Add([]);
 			for (int i = 0; i < bindingLists.Count; i++) {
-				if (i != 0) {
-					bindingList.Add(new UIHorizontalSeparator());
-				}
 				ManualList list = new();
 				list.Width.Set(0, 1);
-				//list.Top.Set(0, 0.1f);
-				//list.MinHeight.Set(32, 0);
-				list.OverflowHidden	= false;
 				FillBindingElement(list, i);
 				bindingList.Add(list);
 			}
+			UIButton<string> addButton = new("+");
+			addButton.Width.Set(0, 1f);
+			addButton.Height.Set(32, 0);
+			addButton.OnLeftClick += (_, _) => {
+				bindingLists.Add([""]);
+				SetupList();
+			};
+			bindingList.Add(addButton);
 		}
 		void FillBindingElement(ManualList list, int bindingIndex) {
 			list.Clear();
 			List<string> parts = bindingLists[bindingIndex];
-			if (parts.Count > 0) {
-				UIButton<string> insertButton = new("+");
-				insertButton.Width.Set(0, 1f);
-				insertButton.Height.Set(32, 0);
-				insertButton.OnLeftClick += (_, _) => {
-					parts.Insert(0, "");
-					FillBindingElement(list, bindingIndex);
-				};
-				list.Add(insertButton);
+			if (parts.Count == 0) {
+				if (list.Parent is ManualList listParent) {
+					listParent.RemoveElement(list);
+				} else {
+					list.Remove();
+				}
+				return;
 			}
+			UIButton<string> insertButton = new("+");
+			insertButton.Width.Set(0, 1f);
+			insertButton.Height.Set(32, 0);
+			insertButton.OnLeftClick += (_, _) => {
+				parts.Insert(0, "");
+				FillBindingElement(list, bindingIndex);
+			};
+			list.Add(insertButton);
 			for (int i = 0; i < parts.Count; i++) {
 				list.Add(new UIChordbindingListItem(this, list, bindingIndex, i) {
 					Height = new(32, 0),
@@ -229,13 +284,14 @@ namespace ControllerConfigurator {
 				FillBindingElement(list, bindingIndex);
 			};
 			list.Add(addButton);
+			list.Recalculate();
 		}
 		void ImportBindingLists() {
 			bindingLists = realBindings.Select(s => s.Split('+').ToList()).ToList();
 		}
 		void ExportBindingLists() {
 			realBindings.Clear();
-			realBindings.AddRange(bindingLists.Select(s => string.Join("+", s.Where(s => !string.IsNullOrEmpty(s)))));
+			realBindings.AddRange(bindingLists.Select(s => string.Join("+", s.Where(s => !string.IsNullOrEmpty(s)))).Where(s => !string.IsNullOrEmpty(s)));
 		}
 		public override bool ContainsPoint(Vector2 point) {
 			if (!visible) return false;
@@ -246,6 +302,11 @@ namespace ControllerConfigurator {
 			base.Draw(spriteBatch);
 		}
 		public class ManualList : UIElement {
+			AutoLoadingAsset<Texture2D> separatorTexture = $"{nameof(ControllerConfigurator)}/Separator";
+			public float padding = 4;
+			public float scroll;
+			public bool addSeparators = false;
+			readonly List<UIElement> elements = [];
 			public ManualList() {
 				PaddingRight = 0;
 				PaddingLeft = 0;
@@ -253,16 +314,54 @@ namespace ControllerConfigurator {
 				PaddingTop = 0;
 			}
 			public void Clear() {
-				RemoveAllChildren();
+				foreach (UIElement child in elements) {
+					this.RemoveChild(child);
+				}
+				elements.Clear();
 				this.Height.Pixels = 0;
 				Recalculate();
+
 			}
 			public void Add(UIElement element) {
-				element.Top.Set(this.GetInnerDimensions().Height + 4, 0);
-				element.Height.Set(element.Height.Pixels, 0);
 				Append(element);
-				this.Height.Pixels += element.Height.Pixels + 4;
-				Recalculate();
+				elements.Add(element);
+			}
+			public void RemoveElement(UIElement element) {
+				elements.Remove(element);
+				RemoveChild(element);
+			}
+			public override void Update(GameTime gameTime) {
+				float oldHeight = this.Height.Pixels;
+				base.Update(gameTime);
+				this.Height.Pixels = 0;
+				for (int i = 0; i < elements.Count; i++) {
+					this.Height.Pixels += elements[i].GetOuterDimensions().Height + padding;
+					if (addSeparators && i < elements.Count - 1) {
+						this.Height.Pixels += 6 + padding;
+					}
+				}
+				if (this.Height.Pixels != oldHeight) Recalculate();
+			}
+			protected override void DrawChildren(SpriteBatch spriteBatch) {
+				float pos = -scroll;
+				Rectangle separatorBounds = GetDimensions().ToRectangle();
+				float baseSeparatorPos = separatorBounds.Y;
+				separatorBounds.Height = 6;
+				foreach (UIElement child in Children) {
+					if (elements.Contains(child)) {
+						child.Top.Set(pos, 0);
+						child.Recalculate();
+						pos += child.GetOuterDimensions().Height + padding;
+						if (addSeparators && child != elements[^1]) {
+							separatorBounds.Y = (int)(pos + baseSeparatorPos - 2);
+							spriteBatch.Draw(separatorTexture, separatorBounds with { Width = 4 }, new Rectangle(0, 0, 4, 6), Color.Black);
+							spriteBatch.Draw(separatorTexture, separatorBounds with { Width = separatorBounds.Width - 8, X = separatorBounds.X + 4 }, new Rectangle(4, 0, 52 - 8, 6), Color.Black);
+							spriteBatch.Draw(separatorTexture, separatorBounds with { Width = 4, X = separatorBounds.Right - 4 }, new Rectangle(52 - 4, 0, 6, 6), Color.Black);
+							pos += 6 + padding;
+						}
+					}
+					child.Draw(spriteBatch);
+				}
 			}
 		}
 		public class UIChordbindingListItem : UIElement {
@@ -333,6 +432,20 @@ namespace ControllerConfigurator {
 				}
 				parent.listeningChordPart = null;
 			}
+		}
+	}
+	public class SeparatorElement : UIElement {
+		AutoLoadingAsset<Texture2D> texture = $"{nameof(ControllerConfigurator)}/Separator";
+		public Color color = Color.Black;
+		public SeparatorElement() {
+			Width.Set(0, 1);
+			Height.Set(6, 0);
+		}
+		protected override void DrawSelf(SpriteBatch spriteBatch) {
+			Rectangle bounds = GetDimensions().ToRectangle();
+			spriteBatch.Draw(texture, bounds with { Width = 4 }, new Rectangle(0, 0, 4, 6), color);
+			spriteBatch.Draw(texture, bounds with { Width = bounds.Width - 8, X = bounds.X + 4 }, new Rectangle(4, 0, 52 - 8, 6), color);
+			spriteBatch.Draw(texture, bounds with { Width = 4, X = bounds.Right - 4 }, new Rectangle(52 - 4, 0, 6, 6), color);
 		}
 	}
 }
