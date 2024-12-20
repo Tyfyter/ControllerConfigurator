@@ -174,7 +174,7 @@ namespace ControllerConfigurator {
 		public static ControllerConfiguratorConfig Instance;
 		[DefaultValue(true)]
 		public bool DisableLeftStickInRadial { get; set; }
-		[DefaultValue(8f)]
+		[DefaultValue(8f), Range(0f, 24f)]
 		public float ControlerMouseSensitivity { get; set; }
 	}
 	public class FloatCurve : Curve<float> {
