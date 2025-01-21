@@ -26,15 +26,29 @@ namespace ControllerConfigurator {
 		FastFieldInfo<UIManageControls, bool> OnKeyboard = new("OnKeyboard", BindingFlags.NonPublic);
 		FastFieldInfo<UIManageControls, bool> OnGameplay = new("OnGameplay", BindingFlags.NonPublic);
 		static Action UIManageControls_FillList;
+		static Func<Mod> ModKeybind_GetMod;
 		public void Load(Mod mod) {
 			On_UIManageControls.OnInitialize += On_UIManageControls_OnInitialize;
 			On_UIManageControls.OnActivate += On_UIManageControls_OnActivate;
 			IL_UIManageControls.FillList += IL_UIManageControls_FillList;
 			UIManageControls_FillList = typeof(UIManageControls).GetMethod("FillList", BindingFlags.NonPublic | BindingFlags.Instance).CreateDelegate<Action>(new UIManageControls());
+			PropertyInfo prop = typeof(ModKeybind).GetProperty("Mod", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			ConstructorInfo ctor = typeof(ModKeybind).GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, [typeof(Mod), typeof(string), typeof(string)]);
+			ModKeybind_GetMod = prop.GetMethod.CreateDelegate<Func<Mod>>(
+				ctor.Invoke([ModContent.GetInstance<ControllerConfigurator>(), "FakeKeybind", ""])
+			);
 		}
 		public static void FillList(UIManageControls instance) {
 			PegasusLib.Reflection.DelegateMethods._target.SetValue(UIManageControls_FillList, instance);
 			UIManageControls_FillList();
+		}
+		public static Mod GetMod(ModKeybind instance) {
+			PegasusLib.Reflection.DelegateMethods._target.SetValue(ModKeybind_GetMod, instance);
+			return ModKeybind_GetMod();
+		}
+		public void Unload() {
+			UIManageControls_FillList = null;
+			ModKeybind_GetMod = null;
 		}
 		private void IL_UIManageControls_FillList(ILContext il) {
 			ILCursor c = new(il);
@@ -45,8 +59,7 @@ namespace ControllerConfigurator {
 					int snapPointIndex = 0;
 					List<UIElement> newList = [];
 					foreach (KeyValuePair<string, List<string>> item in PlayerInput.CurrentProfile.InputModes[GetInputMode(self)].KeyStatus) {
-						string fred = GetFriendlyName(item.Key);
-						if (!fred.Contains(search, StringComparison.CurrentCultureIgnoreCase)) continue;
+						if (!MatchesSearch(item.Key)) continue;
 						UIElement uIElement2 = self.CreatePanel(item.Key, InputMode.Keyboard, Color.Firebrick);
 						uIElement2.Width.Set(0f, 1f);
 						uIElement2.Height.Set(0f, 1f);
@@ -78,11 +91,14 @@ namespace ControllerConfigurator {
 				return InputMode.XBoxGamepadUI;
 			}
 		}
-		string GetFriendlyName(string keybind) {
+		bool MatchesSearch(string keybind) {
 			if (modKeybinds.Value.TryGetValue(keybind, out ModKeybind modKeybind)) {
-				return modKeybind.DisplayName.Value;
+				if (modKeybind.DisplayName.Value.Contains(search, StringComparison.CurrentCultureIgnoreCase)) return true;
+				if (GetMod(modKeybind).DisplayName.Contains(search, StringComparison.CurrentCultureIgnoreCase)) return true;
+				if (keybind.Contains(search, StringComparison.CurrentCultureIgnoreCase)) return true;
+				if (GetMod(modKeybind).Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)) return true;
 			}
-			return keybind;
+			return false;
 		}
 		ControlsMenuSearchElement element;
 		private void On_UIManageControls_OnActivate(On_UIManageControls.orig_OnActivate orig, UIManageControls self) {
@@ -104,7 +120,6 @@ namespace ControllerConfigurator {
 				Height = new(30, 0)
 			});
 		}
-		public void Unload() { }
 	}
 	public class ControlsMenuSearchElement : UIElement, ITextInputContainer {
 		public static ref string Search => ref ControlsMenuSearch.search;
@@ -133,9 +148,7 @@ namespace ControllerConfigurator {
 			this.Clear();
 			Search = null;
 			focused = false;
-		}
-		public override bool ContainsPoint(Vector2 point) {
-			return base.ContainsPoint(point);
+			ControlsMenuSearch.FillList(Main.ManageControlsMenu);
 		}
 		public override void Update(GameTime gameTime) {
 			base.Update(gameTime);

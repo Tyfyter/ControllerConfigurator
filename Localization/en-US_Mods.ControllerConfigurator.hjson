@@ -14,4 +14,7 @@ Configs: {
 	}
 }
 
-Keybinds.UseMouseWithControler.DisplayName: Use Mouse With Controler
+Keybinds: {
+	UseMouseWithControler.DisplayName: Use Mouse With Controler
+	FakeKeybind.DisplayName: Fake Keybind
+}
