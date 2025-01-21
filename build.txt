@@ -1,4 +1,4 @@
-displayName = Controller Configurator
+displayName = Control Configurator
 author = Moonlight Glint
 version = 0.2.0.1
 
