@@ -15,6 +15,7 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using Terraria;
+using Terraria.Audio;
 using Terraria.GameContent.UI.Elements;
 using Terraria.GameContent.UI.States;
 using Terraria.GameInput;
@@ -28,9 +29,11 @@ namespace ControllerConfigurator {
 	// Please read https://github.com/tModLoader/tModLoader/wiki/Basic-tModLoader-Modding-Guide#mod-skeleton-contents for more information about the various files in a mod.
 	public class ControllerConfigurator : Mod {
 		public static ModKeybind forceMouseKeybind;
+		public static ModKeybind goToKeybindKeybind;
 		public static bool forceMouse;
 		public override void Load() {
 			forceMouseKeybind = KeybindLoader.RegisterKeybind(this, "UseMouseWithControler", Keys.None);
+			goToKeybindKeybind = KeybindLoader.RegisterKeybind(this, "GoToKeybind", Keys.OemQuestion);
 			IL_Player.SelectionRadial.Update += SelectionRadial_Update;
 			IL_TriggersSet.CopyInto += IL_TriggersSet_CopyInto;
 			IL_Main.DrawCursor += IL_Main_DrawCursor;
@@ -43,7 +46,18 @@ namespace ControllerConfigurator {
 			);
 			IL_ItemSlot.MouseHover_ItemArray_int_int += IL_ItemSlot_Handle_ItemArray_int_int;
 		}
-
+		public override object Call(params object[] args) {
+			switch (((string)args[0]).ToUpperInvariant()) {
+				case "GETGOTOKEYBINDKEYBIND":
+				return goToKeybindKeybind;
+				case "OPENKEYBINDSTOSEARCH":
+				SoundEngine.PlaySound(SoundID.MenuOpen);
+				ControlsMenuSearch.nextSearch = (args[1] as ModKeybind)?.DisplayName?.Value;
+				IngameFancyUI.OpenKeybinds();
+				return null;
+			}
+			return null;
+		}
 		private static void IL_ItemSlot_Handle_ItemArray_int_int(ILContext il) {
 			ILCursor c = new(il);
 			c.EmitLdarg0();

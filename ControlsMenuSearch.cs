@@ -20,6 +20,7 @@ using Terraria.UI;
 
 namespace ControllerConfigurator {
 	public class ControlsMenuSearch : ILoadable {
+		public static string nextSearch = null;
 		public static string search = null;
 		FastFieldInfo<UIManageControls, UIKeybindingSimpleListItem> _buttonProfile = new("_buttonProfile", BindingFlags.NonPublic);
 		FastStaticFieldInfo<KeybindLoader, IDictionary<string, ModKeybind>> modKeybinds = new ("modKeybinds", BindingFlags.NonPublic);
@@ -102,12 +103,19 @@ namespace ControllerConfigurator {
 		}
 		ControlsMenuSearchElement element;
 		private void On_UIManageControls_OnActivate(On_UIManageControls.orig_OnActivate orig, UIManageControls self) {
+			search = nextSearch;
+			nextSearch = null;
 			if (element is not null) {
-				element.searchText = null;
-				element.CursorIndex = 0;
-				element.focused = false;
+				if (search is null) {
+					element.searchText = null;
+					element.CursorIndex = 0;
+					element.focused = false;
+				} else {
+					element.searchText = new(search);
+					element.CursorIndex = search.Length;
+					element.focused = false;
+				}
 			}
-			search = null;
 			orig(self);
 		}
 		private void On_UIManageControls_OnInitialize(On_UIManageControls.orig_OnInitialize orig, UIManageControls self) {
@@ -205,12 +213,14 @@ namespace ControllerConfigurator {
 					area,
 					Color.AliceBlue * (clearButton.Contains(Main.MouseScreen.ToPoint()) ? 1 : 0.8f)
 				);
+				Vector2 size = FontAssets.MouseText.Value.MeasureString(TextDisplay);
+				float scale = Math.Min((dimensions.Width - 60) / (size.X + 1), 1.2f);
 				this.DrawInputContainerText(spriteBatch,
-					this.GetDimensions().Position() + new Vector2(30, 0),
+					dimensions.Position() + new Vector2(30, dimensions.Height * 0.5f - 22 * scale * 0.5f),
 					FontAssets.MouseText.Value,
 					Color.White,
 					focused,
-					1.2f,
+					scale,
 					new(8, 2)
 				);
 			}
