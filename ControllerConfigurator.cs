@@ -1,12 +1,15 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PegasusLib;
 using Steamworks;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -16,12 +19,14 @@ using System.Text;
 using System.Threading.Tasks;
 using Terraria;
 using Terraria.Audio;
+using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
 using Terraria.GameContent.UI.States;
 using Terraria.GameInput;
 using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.ModLoader.Config;
+using Terraria.ModLoader.Config.UI;
 using Terraria.UI;
 using Terraria.UI.Gamepad;
 
@@ -50,9 +55,10 @@ namespace ControllerConfigurator {
 			switch (((string)args[0]).ToUpperInvariant()) {
 				case "GETGOTOKEYBINDKEYBIND":
 				return goToKeybindKeybind;
+
 				case "OPENKEYBINDSTOSEARCH":
 				SoundEngine.PlaySound(SoundID.MenuOpen);
-				ControlsMenuSearch.nextSearch = (args[1] as ModKeybind)?.DisplayName?.Value;
+				ControlsMenuSearch.nextSearch = ((args[1] as ModKeybind)?.DisplayName?.Value) ?? args[1].ToString();
 				IngameFancyUI.OpenKeybinds();
 				return null;
 			}
@@ -133,9 +139,13 @@ namespace ControllerConfigurator {
 				Vector2 direction = PlayerInput.GamepadThumbstickRight;
 				direction.X = SubtractBlockChangeSign(direction.X, PlayerInput.CurrentProfile.LeftThumbstickDeadzoneX * Math.Sign(direction.X));
 				direction.Y = SubtractBlockChangeSign(direction.Y, PlayerInput.CurrentProfile.LeftThumbstickDeadzoneY * Math.Sign(direction.Y));
+				//direction.X = ControllerConfiguratorConfig.Instance.ControlerMouseSensitivityCurve[direction.X] * Math.Sign(direction.X);
+				//direction.Y = ControllerConfiguratorConfig.Instance.ControlerMouseSensitivityCurve[direction.Y] * Math.Sign(direction.Y);
 				direction *= ControllerConfiguratorConfig.Instance.ControlerMouseSensitivity;
 				PlayerInput.MouseX += (int)direction.X;
 				PlayerInput.MouseY += (int)direction.Y;
+				PlayerInput.MouseX = Math.Clamp(PlayerInput.MouseX, 0, Main.screenWidth);
+				PlayerInput.MouseY = Math.Clamp(PlayerInput.MouseY, 0, Main.screenHeight);
 			}
 			return value;
 		}
@@ -188,14 +198,128 @@ namespace ControllerConfigurator {
 		public static ControllerConfiguratorConfig Instance;
 		[DefaultValue(true)]
 		public bool DisableLeftStickInRadial { get; set; }
-		[DefaultValue(8f), Range(0, 32)]
+		[DefaultValue(8f), Range(0f, 128f)]
 		public float ControlerMouseSensitivity { get; set; }
+		/*[CustomModConfigItem(typeof(JoystickSensitivityCurveElement))]
+		[JsonDefaultValue("[]")]
+		public FloatCurve ControlerMouseSensitivityCurve { get; set; } = [
+			new FloatCurve.LinearNode(),
+			new FloatCurve.LinearNode() {
+				x = 1,
+				y = 1
+			}
+		];*/
+	}
+
+	public class JoystickSensitivityCurveConverter : JsonConverter {
+		public override bool CanConvert(Type objectType) {
+			throw new NotImplementedException();
+		}
+
+		public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
+			throw new NotImplementedException();
+		}
+
+		public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+			throw new NotImplementedException();
+		}
+	}
+	public class JoystickSensitivityCurveElement : ConfigElement<FloatCurve> {
+		public FloatCurve NewValue {
+			get {
+				if (!ValueChanged) Value = (FloatCurve)Value.Clone();
+				return Value;
+			}
+		}
+		Curve<float>.CurveNode dragNode = null;
+		public override void OnBind() {
+			base.OnBind();
+			Height.Pixels = 64 + 8;
+		}
+		protected override void DrawSelf(SpriteBatch spriteBatch) {
+			base.DrawSelf(spriteBatch);
+			Rectangle bounds = GetInnerDimensions().ToRectangle();
+			Rectangle area = new(bounds.Right - (64 + 4), bounds.Y + 4, 64, 64);
+			Rectangle frame = new(0, 0, 1, 1);
+			bool clicked = false;
+			if (Main.mouseLeft && Main.mouseLeftRelease && area.Contains(Main.MouseScreen.ToPoint())) {
+				clicked = true;
+				_ = NewValue;
+			} else if (dragNode is not null) {
+				if (Main.mouseLeftRelease) {
+					dragNode = null;
+				} else {
+					dragNode.x = Math.Clamp((Main.mouseX - area.X) / (float)area.Width, 0, 1);
+					dragNode.y = Math.Clamp(1 - (Main.mouseY - area.Y) / (float)area.Height, 0, 1);
+					Value.Reorder(dragNode);
+				}
+			}
+			spriteBatch.Draw(
+				TextureAssets.MagicPixel.Value,
+				area,
+				Color.Black
+			);
+			for (int i = 0; i < area.Width; i++) {
+				int amount = (int)(Value[i / (float)area.Width] * area.Height);
+				frame.X = area.X + i;
+				frame.Y = area.Y + area.Height - amount;
+				frame.Height = amount;
+				spriteBatch.Draw(
+					TextureAssets.MagicPixel.Value,
+					frame,
+					new Color(i / (float)area.Width, 0, amount / (float)area.Height)
+				);
+			}
+			Rectangle dot = new(0, 0, 2, 2);
+			Curve<float>.CurveNode clickedNode = null;
+			float dist = 8;
+			foreach (Curve<float>.CurveNode node in Value) {
+				Vector2 pos = area.TopLeft() + area.Size() * new Vector2(node.x, 1 - node.y);
+				spriteBatch.Draw(
+					TextureAssets.MagicPixel.Value,
+					pos,
+					dot,
+					Color.Black,
+					MathHelper.PiOver4,
+					Vector2.One,
+					3f,
+					SpriteEffects.None,
+				0);
+				spriteBatch.Draw(
+					TextureAssets.MagicPixel.Value,
+					area.TopLeft() + area.Size() * new Vector2(node.x, 1 - node.y),
+					dot,
+					Color.Goldenrod,
+					MathHelper.PiOver4,
+					Vector2.One,
+					2f,
+					SpriteEffects.None,
+				0);
+				if (clicked && pos.IsWithin(Main.MouseScreen, dist)) {
+					clickedNode = node;
+				}
+			}
+			if (clicked && clickedNode is null) {
+				Value.Add(new FloatCurve.LinearNode() {
+					x = (Main.mouseX - area.X) / (float)area.Width,
+					y = 1 - (Main.mouseY - area.Y) / (float)area.Height
+				});
+			}
+			if (clickedNode is not null) {
+				dragNode = clickedNode;
+			}
+		}
 	}
 	public class FloatCurve : Curve<float> {
 		public override float Interpolate(float a, float b, float progress) => Utils.Remap(progress, 0, 1, a, b);
 	}
-	public abstract class Curve<T> {
-		readonly List<CurveNode> nodes = [];
+	public abstract class Curve<T> : IEnumerable<Curve<T>.CurveNode> {
+		List<CurveNode> nodes = [];
+		public Curve<T> Clone() {
+			Curve<T> clone = (Curve<T>)MemberwiseClone();
+			clone.nodes = [..nodes];
+			return clone;
+		}
 		public T this[float position] {
 			get {
 				CurveNode prevNode = default;
@@ -207,11 +331,15 @@ namespace ControllerConfigurator {
 					if (currentNode.x > position) break;
 				}
 				if (currentNode == null) return default;
-				if (position < currentNode.x) return currentNode.y;
+				if (position > currentNode.x || prevNode is null) return currentNode.y;
 				return Interpolate(prevNode.y, currentNode.y, currentNode.GetProgress(position, prevNode.x, currentNode.x));
 			}
 		} 
 		public void Add(CurveNode node) {
+			nodes.InsertOrdered(node);
+		}
+		public void Reorder(CurveNode node) {
+			nodes.Remove(node);
 			nodes.InsertOrdered(node);
 		}
 		public abstract T Interpolate(T a, T b, float progress);
@@ -224,6 +352,14 @@ namespace ControllerConfigurator {
 			public T y;
 			public abstract float GetProgress(float aX, float bX, float x);
 			public int CompareTo(CurveNode other) => x.CompareTo(other.x);
+		}
+
+		public IEnumerator<CurveNode> GetEnumerator() {
+			return ((IEnumerable<CurveNode>)nodes).GetEnumerator();
+		}
+
+		IEnumerator IEnumerable.GetEnumerator() {
+			return ((IEnumerable)nodes).GetEnumerator();
 		}
 	}
 }

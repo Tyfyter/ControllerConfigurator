@@ -11,6 +11,20 @@ Configs: {
 			Label: Controler Mouse Sensitivity
 			Tooltip: ""
 		}
+
+		ControlerMouseSensitivityCurve: {
+			Label: Controler Mouse Sensitivity Curve
+			Tooltip: ""
+		}
+	}
+
+	FloatCurve.Tooltip: ""
+
+	Curve`1: {
+		Item: {
+			Label: Item
+			Tooltip: ""
+		}
 	}
 }
 
