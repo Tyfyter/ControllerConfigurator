@@ -17,6 +17,8 @@ using Terraria.Localization;
 using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI;
+using Terraria.UI.Chat;
+using XPT.Core.Audio.MP3Sharp.Decoding;
 
 namespace ControllerConfigurator {
 	public class ControlsMenuSearch : ILoadable {
@@ -59,8 +61,25 @@ namespace ControllerConfigurator {
 				if (search is not null) {
 					int snapPointIndex = 0;
 					List<UIElement> newList = [];
+					Mod lastMod = null;
 					foreach (KeyValuePair<string, List<string>> item in PlayerInput.CurrentProfile.InputModes[GetInputMode(self)].KeyStatus) {
 						if (!MatchesSearch(item.Key)) continue;
+						if (modKeybinds.Value.TryGetValue(item.Key, out ModKeybind modKeybind)) {
+							Mod currentMod = GetMod(modKeybind);
+							if (currentMod != lastMod) {
+								lastMod = currentMod;
+								UIElement header = new HeaderElement(currentMod.DisplayName);
+								header.Width.Set(0f, 1f);
+								header.Height.Set(0f, 1f);
+								header.SetSnapPoint("Wide", snapPointIndex++);
+								UISortableElement sortableHeader = new(snapPointIndex - 1);
+								sortableHeader.Width.Set(0f, 1f);
+								sortableHeader.Height.Set(30f, 0f);
+								sortableHeader.MarginBottom = -16;
+								sortableHeader.Append(header);
+								newList.Add(sortableHeader);
+							}
+						}
 						UIElement uIElement2 = self.CreatePanel(item.Key, InputMode.Keyboard, Color.Firebrick);
 						uIElement2.Width.Set(0f, 1f);
 						uIElement2.Height.Set(0f, 1f);
@@ -127,6 +146,23 @@ namespace ControllerConfigurator {
 				MaxWidth = new(30, 1),
 				Height = new(30, 0)
 			});
+		}
+		internal class HeaderElement : UIElement {
+			private readonly string header;
+			public HeaderElement(string header) {
+				this.header = header;
+				Vector2 size = ChatManager.GetStringSize(FontAssets.ItemStack.Value, this.header, Vector2.One, 532f);
+				Width.Set(0f, 1f);
+				Height.Set(size.Y + 6f, 0f);
+			}
+			protected override void DrawSelf(SpriteBatch spriteBatch) {
+				base.DrawSelf(spriteBatch);
+				CalculatedStyle dimensions = GetDimensions();
+				float settingsWidth = dimensions.Width + 1f;
+				Vector2 position = new Vector2(dimensions.X, dimensions.Y) + new Vector2(8f);
+				spriteBatch.Draw(TextureAssets.MagicPixel.Value, new Rectangle((int)dimensions.X + 10, (int)dimensions.Y + (int)dimensions.Height - 2, (int)dimensions.Width - 20, 1), Color.LightGray);
+				ChatManager.DrawColorCodedStringWithShadow(spriteBatch, FontAssets.ItemStack.Value, header, position, Color.White, 0f, Vector2.Zero, new Vector2(1f), settingsWidth - 20f);
+			}
 		}
 	}
 	public class ControlsMenuSearchElement : UIElement, ITextInputContainer {
