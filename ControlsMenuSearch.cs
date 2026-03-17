@@ -2,10 +2,8 @@
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using PegasusLib;
-using PegasusLib.Reflection;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using Terraria;
@@ -13,12 +11,10 @@ using Terraria.GameContent;
 using Terraria.GameContent.UI.Elements;
 using Terraria.GameContent.UI.States;
 using Terraria.GameInput;
-using Terraria.Localization;
 using Terraria.ModLoader;
 using Terraria.ModLoader.UI;
 using Terraria.UI;
 using Terraria.UI.Chat;
-using XPT.Core.Audio.MP3Sharp.Decoding;
 
 namespace ControllerConfigurator {
 	public class ControlsMenuSearch : ILoadable {
