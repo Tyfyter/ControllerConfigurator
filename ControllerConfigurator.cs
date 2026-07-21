@@ -47,7 +47,7 @@ namespace ControllerConfigurator {
 			IL_PlayerInput.GamePadInput += IL_PlayerInput_GamePadInput;
 			IL_UILinkPointNavigator.Update += IL_UILinkPointNavigator_Update;
 			IL_ItemSlot.OverrideHover_ItemArray_int_int += CreateForceMouseHook(
-				(i => i.MatchCall(typeof(ItemSlot), "get_" + nameof(ItemSlot.NotUsingGamepad)), (bool val) => val || forceMouse)
+				(i => i.MatchCall(typeof(ItemSlot), "get_" + nameof(ItemSlot.NotUsingGamepad)), val => val || forceMouse)
 			);
 			IL_ItemSlot.MouseHover_ItemArray_int_int += IL_ItemSlot_Handle_ItemArray_int_int;
 		}
@@ -108,12 +108,29 @@ namespace ControllerConfigurator {
 				i => i.MatchCall(typeof(PlayerInput), "get_" + nameof(PlayerInput.CursorIsBusy))
 			);
 			c.EmitDelegate((bool val) => val || forceMouse);
-		}
 
+			c = new(il);
+			int inputMode = -1;
+			c.GotoNext(MoveType.Before,
+				i => i.MatchLdloc(out inputMode),
+				i => i.MatchStsfld<PlayerInput>(nameof(PlayerInput.CurrentInputMode))
+			);
+			c.GotoPrev(MoveType.After,
+				i => i.MatchStloc(inputMode)
+			);
+			c.MoveAfterLabels();
+			c.EmitLdloca(inputMode);
+			c.EmitCall(((Delegate)ForceNormalInputMode).Method);
+		}
+		static void ForceNormalInputMode(ref InputMode inputMode) {
+			if (forceMouse && inputMode == InputMode.XBoxGamepadUI && IsInWorld) inputMode = InputMode.XBoxGamepad;
+		}
 		static int gamepadHoveredSlot = -1;
+		static bool IsInWorld => !Main.playerInventory && !Main.ingameOptionsWindow && string.IsNullOrWhiteSpace(Main.npcChatText) && !(Main.InGameUI.IsVisible && (Main.InGameUI.CurrentState == Main.ManageControlsMenu || Main.InGameUI.CurrentState == Main.AchievementsMenu));
 		private static bool On_PlayerInput_GamePadInput(On_PlayerInput.orig_GamePadInput orig) {
 			bool value = orig();
-			if (PlayerInput.Triggers.Old.KeyStatus.ContainsKey($"{nameof(ControllerConfigurator)}/UseMouseWithControler") && !forceMouseKeybind.Old && forceMouseKeybind.Current) {
+			bool canForceMouse = ControllerConfiguratorConfig.Instance.EnableMouseInWorld || !IsInWorld;
+			if (canForceMouse && PlayerInput.Triggers.Old.KeyStatus.ContainsKey($"{nameof(ControllerConfigurator)}/UseMouseWithControler") && !forceMouseKeybind.Old && forceMouseKeybind.Current) {
 				forceMouse ^= true;
 				//PlayerInput.UseSteamDeckIfPossible = forceMouse || SteamUtils.IsSteamRunningOnSteamDeck();
 				PlayerInput.PreventCursorModeSwappingToGamepad = forceMouse;
@@ -130,7 +147,7 @@ namespace ControllerConfigurator {
 					UILinkPointNavigator.ChangePoint(gamepadHoveredSlot);
 				}
 			}
-			if (forceMouse && !Main.playerInventory && !Main.ingameOptionsWindow && !(Main.InGameUI.IsVisible && (Main.InGameUI.CurrentState == Main.ManageControlsMenu || Main.InGameUI.CurrentState == Main.AchievementsMenu))) {
+			if (forceMouse && !canForceMouse) {
 				forceMouse = false;
 			} else if (!forceMouse && ChordBindings.HasBindingWindowOpen) {
 				forceMouse = true;
@@ -200,6 +217,8 @@ namespace ControllerConfigurator {
 		public bool DisableLeftStickInRadial { get; set; }
 		[DefaultValue(8f), Range(0f, 128f)]
 		public float ControlerMouseSensitivity { get; set; }
+		[DefaultValue(false)]
+		public bool EnableMouseInWorld { get; set; }
 		/*[CustomModConfigItem(typeof(JoystickSensitivityCurveElement))]
 		[JsonDefaultValue("[]")]
 		public FloatCurve ControlerMouseSensitivityCurve { get; set; } = [

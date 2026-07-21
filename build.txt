@@ -1,7 +1,9 @@
 displayName = Control Configurator
 author = Moonlight Glint
-version = 0.3.2
+version = 0.3.2.1
 side = Client
 
 modReferences = PegasusLib
 buildIgnore = Effects/CheckFXCompile.exe, Effects/compile.bat, Effects/fxcompiler.exe, Effects/Microsoft.Xna.Framework.Content.Pipeline.dll, Effects/Microsoft.Xna.Framework.Content.Pipeline.EffectImporter.dll, Effects/wcfxcompiler.dll
+
+homepage = https://tyfyter.github.io/?ControllerConfigurator

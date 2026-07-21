@@ -1,0 +1,4 @@
+﻿Long presses
+Shift clicking items
+Item-specific smart cursor
+Keyboard-specific keybinds for gamepad

@@ -16,6 +16,11 @@ Configs: {
 			Label: Controler Mouse Sensitivity Curve
 			Tooltip: ""
 		}
+
+		EnableMouseInWorld: {
+			Label: Enable Mouse In World
+			Tooltip: ""
+		}
 	}
 
 	FloatCurve.Tooltip: ""
