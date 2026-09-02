@@ -1,0 +1,44 @@
+Configs: {
+	ControllerConfiguratorConfig: {
+		DisplayName: Configuración del Controller
+
+		DisableLeftStickInRadial: {
+			Label: Permitir movimiento con el menú radial abierto
+			Tooltip:
+				'''
+				Cuando está habilitado, solo se usará el joystick analógico derecho para seleccionar elementos en la barra de acceso rápido radial,
+				y todos los demás controles funcionarán como si la barra de acceso rápido radial no estuviera abierta.
+				'''
+		}
+
+		ControlerMouseSensitivity: {
+			Label: Sensibilidad del ratón en el control
+			Tooltip: ""
+		}
+
+		ControlerMouseSensitivityCurve: {
+			Label: Curva de sensibilidad del ratón en el control
+			Tooltip: ""
+		}
+
+		EnableMouseInWorld: {
+			Label: Habilitar el ratón en el mundo
+			Tooltip: ""
+		}
+	}
+
+	FloatCurve.Tooltip: ""
+
+	Curve`1: {
+		Item: {
+			Label: Item
+			Tooltip: ""
+		}
+	}
+}
+
+Keybinds: {
+	UseMouseWithControler.DisplayName: Usar el ratón con el control
+	FakeKeybind.DisplayName: Falso atajo de teclado
+	GoToKeybind.DisplayName: Ir a la combinación de teclas
+}
