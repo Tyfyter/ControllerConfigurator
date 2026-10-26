@@ -36,6 +36,7 @@ namespace ControllerConfigurator {
 		public static ModKeybind forceMouseKeybind;
 		public static ModKeybind goToKeybindKeybind;
 		public static bool forceMouse;
+		ControllerConfigurator() => AutoModCall.PreLoadAutoModCalls(this);
 		public override void Load() {
 			forceMouseKeybind = KeybindLoader.RegisterKeybind(this, "UseMouseWithControler", Keys.None);
 			goToKeybindKeybind = KeybindLoader.RegisterKeybind(this, "GoToKeybind", Keys.OemQuestion);
@@ -52,16 +53,9 @@ namespace ControllerConfigurator {
 			IL_ItemSlot.MouseHover_ItemArray_int_int += IL_ItemSlot_Handle_ItemArray_int_int;
 		}
 		public override object Call(params object[] args) {
-			switch (((string)args[0]).ToUpperInvariant()) {
-				case "GETGOTOKEYBINDKEYBIND":
-				return goToKeybindKeybind;
-
-				case "OPENKEYBINDSTOSEARCH":
-				SoundEngine.PlaySound(SoundID.MenuOpen);
-				ControlsMenuSearch.nextSearch = ((args[1] as ModKeybind)?.DisplayName?.Value) ?? args[1].ToString();
-				IngameFancyUI.OpenKeybinds();
-				return null;
-			}
+			if (args[0] is not string) return null;
+			args[0] = ((string)args[0]).ToUpperInvariant();
+			if (AutoModCall.TryCall(this, args, out object result)) return result;
 			return null;
 		}
 		private static void IL_ItemSlot_Handle_ItemArray_int_int(ILContext il) {

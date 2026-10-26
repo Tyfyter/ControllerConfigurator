@@ -27,6 +27,7 @@ using Microsoft.Build.Tasks;
 namespace ControllerConfigurator {
 	public class ChordBindings : ILoadable {
 		public FastFieldInfo<UIKeybindingListItem, string> _keybind = new("_keybind", BindingFlags.Public | BindingFlags.NonPublic);
+		public static Dictionary<string, Func<bool>> canBlock = [];
 		public void Load(Mod mod) {
 			On_KeyConfiguration.Processkey += On_KeyConfiguration_Processkey;
 			On_UIKeybindingListItem.ctor += On_UIKeybindingListItem_ctor;
@@ -123,6 +124,7 @@ namespace ControllerConfigurator {
 						}
 						set.KeyStatus[item.Key] = true;
 						set.LatestInputMode[item.Key] = mode;
+						if (canBlock.TryGetValue(item.Key, out Func<bool> condition) && !condition()) continue;
 						didAnyCombos = true;
 					}
 					broken:;
@@ -136,7 +138,7 @@ namespace ControllerConfigurator {
 				}
 			}
 		}
-		public void Unload() {}
+		public void Unload() => canBlock = null;
 	}
 	public class ChordBindingElement : UIPanel {
 		InputMode mode;
